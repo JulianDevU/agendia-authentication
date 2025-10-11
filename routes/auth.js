@@ -1,5 +1,5 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 const { pool } = require('../config/database');
 const {
@@ -21,6 +21,67 @@ const changePasswordValidation = [
   body('oldPassword').notEmpty(),
   body('newPassword').isLength({ min: 6 })
 ];
+
+// Validación para registro
+const registerValidation = [
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres')
+];
+
+// POST /api/auth/register
+router.post('/register', registerValidation, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { email, password } = req.body;
+
+  try {
+    // Verificar si el usuario ya existe
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: 'El correo ya está registrado' });
+    }
+
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Crear el usuario
+    const result = await pool.query(
+      `INSERT INTO users (email, password_hash)
+       VALUES ($1, $2)
+       RETURNING id, email`,
+      [email, hashedPassword]
+    );
+
+    const user = result.rows[0];
+
+    // Generar tokens JWT
+    const accessToken = generateAccessToken(user.id, user.email);
+    const refreshToken = generateRefreshToken(user.id);
+
+    // Guardar refresh token
+    await pool.query(
+      'UPDATE users SET refresh_token = $1 WHERE id = $2',
+      [refreshToken, user.id]
+    );
+
+    res.status(201).json({
+      message: 'Usuario registrado exitosamente',
+      user,
+      accessToken,
+      refreshToken
+    });
+  } catch (err) {
+    console.error('Error en registro:', err);
+    res.status(500).json({ error: 'Error al registrar usuario' });
+  }
+});
 
 // POST /api/auth/login
 router.post('/login', loginValidation, async (req, res) => {
