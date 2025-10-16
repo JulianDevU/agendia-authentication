@@ -131,7 +131,7 @@ O simplemente ejecutar este SQL:
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255),
   refresh_token TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -319,6 +319,84 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   "timestamp": "2024-10-10T15:30:45.123Z"
 }
 ```
+### 7. Login google
+
+**Iniciar autenticación**
+
+**Descripción:** Inicia sesión mediante Google. El backend redirige al usuario a Google para autenticarse. Si el usuario no existe en la base de datos, se crea automáticamente con su correo y nombre. Este flujo no requiere frontend: se realiza completamente desde el backend.
+
+**Iniciar autenticación:** `GET /api/auth/google`
+
+**Endpoint:** `GET http://localhost:3001/api/auth/google`
+
+---
+
+**Callback de google**
+
+**Endpoint:** `GET /api/auth/google/callback`
+
+**Descripción:** Google redirige a este endpoint tras la autenticación exitosa. El backend intercambia el code recibido por tokens, obtiene los datos del usuario y lo registra (si no existe).
+
+**Respuesta exitosa (200):**
+```json
+{
+  "message": "Autenticación con Google exitosa",
+  "user": {
+    "id": 12,
+    "email": "user@gmail.com",
+    "name": "Juan Pérez"
+  },
+  "tokens": {
+    "access_token": "ya29.a0AfB_byExampleGoogleAccessToken123...",
+    "refresh_token": "1//0gExampleRefreshTokenABC...",
+    "scope": "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",
+    "token_type": "Bearer",
+    "expiry_date": 1697040000000
+  }
+}
+```
+
+**Error (500):**
+```json
+{
+  "error": "Error al autenticar con Google"
+}
+```
+---
+
+### 8. Register
+**Descripción:** Registra un usuario y retorna tokens
+
+**Endpoint:** `POST /api/auth/register`
+
+**Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Respuesta exitosa (200):**
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "email": "user@example.com"
+  }
+}
+```
+
+**Error (401):**
+```json
+{
+  "error": "Credenciales inválidas"
+}
+```
+
+---
 
 ## 💻 Ejemplos de Uso
 
@@ -329,7 +407,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 async function login() {
   const response = await fetch('http://localhost:3001/api/auth/login', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json'},
     body: JSON.stringify({
       email: 'user@example.com',
       password: 'password123'

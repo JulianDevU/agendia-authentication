@@ -37,6 +37,7 @@ app.use((err, req, res, next) => {
 
 // Iniciar servidor
 const PORT = process.env.PORT || 3001;
+
 app.listen(PORT, () => {
-    console.log(`Servidor de autenticación corriendo en puerto ${PORT}`);
+  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
