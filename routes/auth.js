@@ -191,6 +191,46 @@ router.post('/login', loginValidation, async (req, res) => {
 });
 
 // =========================
+// CAMBIAR CONTRASEÑA
+// =========================
+router.post('/change-password', authenticateToken, changePasswordValidation, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { oldPassword, newPassword } = req.body;
+
+  try {
+    const result = await pool.query('SELECT id, password_hash FROM users WHERE id = $1', [req.user.userId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const user = result.rows[0];
+
+    if (!user.password_hash) {
+      return res.status(400).json({ error: 'No se puede cambiar la contraseña para cuentas de Google' });
+    }
+
+    const validPassword = await bcrypt.compare(oldPassword, user.password_hash);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedNewPassword, user.id]);
+
+    res.status(200).json({ message: 'Contraseña actualizada exitosamente' });
+  } catch (err) {
+    console.error('Error al cambiar contraseña:', err);
+    res.status(500).json({ error: 'Error al cambiar la contraseña' });
+  }
+});
+
+
+// =========================
 // REFRESH TOKEN
 // =========================
 router.post('/refresh', async (req, res) => {
