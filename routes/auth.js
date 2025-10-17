@@ -84,7 +84,7 @@ router.post('/register', registerValidation, async (req, res) => {
 // GOOGLE AUTH
 // =========================
 
-// 1️⃣ Redirige al login de Google
+// 1. Redirige al login de Google
 router.get('/google', (req, res) => {
   const url = client.generateAuthUrl({
     access_type: 'offline',
@@ -97,7 +97,7 @@ router.get('/google', (req, res) => {
   res.redirect(url);
 });
 
-// 2️⃣ Callback de Google (aquí llega el "code")
+// 2. Callback de Google (aquí llega el "code")
 router.get('/google/callback', async (req, res) => {
   const code = req.query.code;
 
