@@ -105,42 +105,49 @@ router.get('/google/callback', async (req, res) => {
     const { tokens } = await client.getToken(code);
     client.setCredentials(tokens);
 
-    // Obtener info del usuario
+    // Obtener info del usuario desde Google
     const { data } = await client.request({
       url: 'https://www.googleapis.com/oauth2/v2/userinfo',
     });
 
     const { email, name, picture } = data;
 
-    // Buscar o crear usuario
+    // Buscar usuario por email
     let result = await pool.query('SELECT id, email FROM users WHERE email = $1', [email]);
     let user;
+
     if (result.rows.length === 0) {
+      // Crear nuevo usuario Google
       result = await pool.query(
-        `INSERT INTO users (email, password_hash)
-         VALUES ($1, $2)
-         RETURNING id, email`,
-        [email, null]
+        `INSERT INTO users (email, password_hash, name, picture, provider)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, email, name, picture, provider`,
+        [email, null, name, picture, 'google']
       );
       user = result.rows[0];
     } else {
       user = result.rows[0];
+      // Actualizar nombre o foto si cambian
+      await pool.query(
+        `UPDATE users SET name = $1, picture = $2, provider = $3 WHERE id = $4`,
+        [name, picture, 'google', user.id]
+      );
     }
 
-    // Generar JWTs
+    // Generar tokens
     const accessToken = generateAccessToken(user.id, user.email);
     const refreshToken = generateRefreshToken(user.id);
 
     await pool.query('UPDATE users SET refresh_token = $1 WHERE id = $2', [refreshToken, user.id]);
 
-    // Mostrar resultado
     res.json({
       message: 'Autenticación con Google exitosa',
       user: {
         id: user.id,
         email: user.email,
         name,
-        picture
+        picture,
+        provider: 'google'
       },
       accessToken,
       refreshToken
