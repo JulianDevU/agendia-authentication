@@ -33,8 +33,25 @@ const changePasswordValidation = [
 
 const registerValidation = [
   body('email').isEmail().normalizeEmail(),
-  body('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres')
+  
+  body('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres'),
+  body('password').matches(/\d/).withMessage('La contraseña debe contener al menos un número'),
+  body('password').matches(/[A-Z]/).withMessage('La contraseña debe contener al menos una letra mayúscula'),
+  body('password').matches(/[a-z]/).withMessage('La contraseña debe contener al menos una letra minúscula')
 ];
+
+// =========================
+// BORRAR CUENTA
+// =========================
+router.delete('/delete-account', authenticateToken, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM users WHERE id = $1', [req.user.userId]);
+    res.json({ message: 'Cuenta eliminada exitosamente' });
+  } catch (err) {
+    console.error('Error al eliminar cuenta:', err);
+    res.status(500).json({ error: 'Error al eliminar la cuenta' });
+  }
+});
 
 // =========================
 // REGISTRO NORMAL
